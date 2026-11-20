@@ -698,6 +698,28 @@ function createSectionContent(section, singBoxFeatures = []) {
   };
 
   o = section.option(
+    form.ListValue,
+    "source_ip_routing_mode",
+    _("Device IP Routing Mode"),
+    _(
+      "Choose how local device IP addresses interact with this section's routing rules",
+    ),
+  );
+  o.value("disabled", _("All devices (default)"));
+  o.value(
+    "fully_routed",
+    _("Route all traffic of specified IPs through this section"),
+  );
+  o.value(
+    "only_section_rules",
+    _("Apply this section's rules only to specified IPs"),
+  );
+  o.default = "disabled";
+  o.rmempty = false;
+  o.depends("connection_type", "proxy");
+  o.depends("connection_type", "vpn");
+
+  o = section.option(
     form.DynamicList,
     "fully_routed_ips",
     _("Fully Routed IPs"),
@@ -707,8 +729,47 @@ function createSectionContent(section, singBoxFeatures = []) {
   );
   o.placeholder = "192.168.1.2 or 192.168.1.0/24";
   o.rmempty = true;
-  o.depends("connection_type", "proxy");
-  o.depends("connection_type", "vpn");
+  o.depends({
+    connection_type: "proxy",
+    source_ip_routing_mode: "fully_routed",
+  });
+  o.depends({
+    connection_type: "vpn",
+    source_ip_routing_mode: "fully_routed",
+  });
+  o.validate = function (section_id, value) {
+    // Optional
+    if (!value || value.length === 0) {
+      return true;
+    }
+
+    const validation = main.validateSubnet(value);
+
+    if (validation.valid) {
+      return true;
+    }
+
+    return validation.message;
+  };
+
+  o = section.option(
+    form.DynamicList,
+    "section_source_ips",
+    _("Section Allowed Source IPs"),
+    _(
+      "Specify local IP addresses or subnets for which this section's domain and subnet rules will apply. Other devices will ignore this section, and other traffic from these devices will not be routed here",
+    ),
+  );
+  o.placeholder = "192.168.1.10 or 192.168.1.0/24";
+  o.rmempty = true;
+  o.depends({
+    connection_type: "proxy",
+    source_ip_routing_mode: "only_section_rules",
+  });
+  o.depends({
+    connection_type: "vpn",
+    source_ip_routing_mode: "only_section_rules",
+  });
   o.validate = function (section_id, value) {
     // Optional
     if (!value || value.length === 0) {
