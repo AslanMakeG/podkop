@@ -56,6 +56,102 @@ patch_source_ruleset_rules() {
     mv "$tmpfile" "$filepath"
 }
 
+# Parses a user domain list string supporting full domains, dot-TLDs, keywords,
+# and wildcard masks (*), and patches the target source ruleset JSON file with
+# domain_suffix, domain_keyword, and domain_regex rules as appropriate.
+import_user_domain_string_to_ruleset() {
+    local string="$1"
+    local ruleset_filepath="$2"
+
+    local tmpfile suffix_file keyword_file regex_file
+    tmpfile=$(mktemp)
+    suffix_file=$(mktemp)
+    keyword_file=$(mktemp)
+    regex_file=$(mktemp)
+
+    printf "%s\n" "$string" | tr -d '\r' | sed 's/\/\/.*//' | tr ', ' '\n' | grep -v '^$' > "$tmpfile"
+
+    local line rest
+    while IFS= read -r line; do
+        line=$(printf '%s' "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | tr 'A-Z' 'a-z')
+
+        [ -z "$line" ] && continue
+
+        case "$line" in
+        *\**)
+            if ! is_domain_wildcard "$line"; then
+                log "'$line' is not a valid domain wildcard" "debug"
+                continue
+            fi
+
+            case "$line" in
+            \*.*)
+                rest="${line#\*.}"
+                case "$rest" in
+                *\**)
+                    wildcard_to_regex "$line" >> "$regex_file"
+                    printf '\n' >> "$regex_file"
+                    ;;
+                *.*)
+                    if is_domain "$rest"; then
+                        printf '%s\n' "$rest" >> "$suffix_file"
+                    else
+                        wildcard_to_regex "$line" >> "$regex_file"
+                        printf '\n' >> "$regex_file"
+                    fi
+                    ;;
+                *)
+                    if is_domain "$rest"; then
+                        printf '.%s\n' "$rest" >> "$suffix_file"
+                    else
+                        wildcard_to_regex "$line" >> "$regex_file"
+                        printf '\n' >> "$regex_file"
+                    fi
+                    ;;
+                esac
+                ;;
+            *)
+                wildcard_to_regex "$line" >> "$regex_file"
+                printf '\n' >> "$regex_file"
+                ;;
+            esac
+            ;;
+        *.*)
+            if is_domain_suffix "$line"; then
+                printf '%s\n' "$line" >> "$suffix_file"
+            else
+                log "'$line' is not a valid domain" "debug"
+            fi
+            ;;
+        *)
+            if is_domain_keyword "$line"; then
+                printf '%s\n' "$line" >> "$keyword_file"
+            else
+                log "'$line' is not a valid domain keyword" "debug"
+            fi
+            ;;
+        esac
+    done < "$tmpfile"
+
+    local json_array
+    if [ -s "$suffix_file" ]; then
+        json_array=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | unique' "$suffix_file")
+        patch_source_ruleset_rules "$ruleset_filepath" "domain_suffix" "$json_array"
+    fi
+
+    if [ -s "$keyword_file" ]; then
+        json_array=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | unique' "$keyword_file")
+        patch_source_ruleset_rules "$ruleset_filepath" "domain_keyword" "$json_array"
+    fi
+
+    if [ -s "$regex_file" ]; then
+        json_array=$(jq -R -s -c 'split("\n") | map(select(length > 0)) | unique' "$regex_file")
+        patch_source_ruleset_rules "$ruleset_filepath" "domain_regex" "$json_array"
+    fi
+
+    rm -f "$tmpfile" "$suffix_file" "$keyword_file" "$regex_file"
+}
+
 # Imports a plain domain list into a ruleset in chunks, validating domains and appending them as domain_suffix rules
 import_plain_domain_list_to_local_source_ruleset_chunked() {
     local plain_list_filepath="$1"

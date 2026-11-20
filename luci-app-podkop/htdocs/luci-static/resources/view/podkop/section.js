@@ -475,7 +475,7 @@ function createSectionContent(section, singBoxFeatures = []) {
       return true;
     }
 
-    const validation = main.validateDomain(value, true);
+    const validation = main.validateDomain(value, true, true);
 
     if (validation.valid) {
       return true;
@@ -493,7 +493,7 @@ function createSectionContent(section, singBoxFeatures = []) {
     ),
   );
   o.placeholder =
-    "example.com, sub.example.com\n// Social networks\ndomain.com test.com // personal domains";
+    "example.com, *.pinterest.ru, pinterest\n// Social networks\ndomain.com test.com // personal domains";
   o.depends("user_domain_list_type", "text");
   o.rows = 8;
   o.rmempty = false;
@@ -512,7 +512,7 @@ function createSectionContent(section, singBoxFeatures = []) {
     }
 
     const { valid, results } = main.bulkValidate(domains, (row) =>
-      main.validateDomain(row, true),
+      main.validateDomain(row, true, true),
     );
 
     if (!valid) {

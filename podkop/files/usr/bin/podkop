@@ -1076,16 +1076,14 @@ configure_user_domain_list() {
 
     prepare_source_ruleset "$section" "user" "domains" "$route_rule_tag"
 
-    local user_domain_list_type items json_array
+    local user_domain_list_type items
     config_get user_domain_list_type "$section" "user_domain_list_type"
     case "$user_domain_list_type" in
     dynamic) config_get items "$section" "user_domains" ;;
     text) config_get items "$section" "user_domains_text" ;;
     esac
 
-    items="$(parse_domain_or_subnet_string_to_commas_string "$items" "domains")"
-    json_array="$(comma_string_to_json_array "$items")"
-    patch_source_ruleset_rules "$ruleset_filepath" "domain_suffix" "$json_array"
+    import_user_domain_string_to_ruleset "$items" "$ruleset_filepath"
 }
 
 configure_user_subnet_list() {
@@ -1926,7 +1924,7 @@ get_system_info() {
 
     podkop_version="$PODKOP_VERSION"
 
-    podkop_latest_version=$(curl -m 3 -s https://api.github.com/repos/itdoginfo/podkop/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
+    podkop_latest_version=$(curl -m 3 -s https://api.github.com/repos/AslanMakeG/podkop/releases/latest | grep '"tag_name":' | cut -d'"' -f4)
     [ -z "$podkop_latest_version" ] && podkop_latest_version="unknown"
 
     if [ -f /www/luci-static/resources/view/podkop/main.js ]; then

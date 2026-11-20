@@ -30,6 +30,36 @@ is_domain_suffix() {
     is_domain "$normalized"
 }
 
+is_domain_keyword() {
+    local str="$1"
+    local regex='^[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$'
+
+    [[ "$str" =~ $regex ]]
+}
+
+is_domain_wildcard() {
+    local str="$1"
+    local regex='^[a-z0-9.*-]+$'
+
+    case "$str" in
+    *\**) ;;
+    *) return 1 ;;
+    esac
+
+    case "$str" in
+    *..*) return 1 ;;
+    esac
+
+    [[ "$str" =~ $regex ]] && [[ "$str" =~ [a-z0-9] ]]
+}
+
+wildcard_to_regex() {
+    local pattern="$1"
+    local escaped
+    escaped=$(printf '%s' "$pattern" | sed 's/\./\\./g; s/\*/.*/g')
+    printf '^%s$' "$escaped"
+}
+
 # Checks if the given string is a valid base64-encoded sequence
 is_base64() {
     local str="$1"

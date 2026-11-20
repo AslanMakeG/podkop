@@ -36,6 +36,25 @@ export const dotTLDTests = [
   ['Invalid single word TLD (net)', 'net', true, false],
 ];
 
+export const patternTests = [
+  ['Keyword (pinterest)', 'pinterest', true],
+  ['Keyword with dash (my-site)', 'my-site', true],
+  ['Keyword with digits (2ip)', '2ip', true],
+  ['Wildcard subdomain (*.pinterest.ru)', '*.pinterest.ru', true],
+  ['Wildcard TLD (pinterest.*)', 'pinterest.*', true],
+  ['Wildcard both (*.pinterest.*)', '*.pinterest.*', true],
+  ['Wildcard substring (*pinterest*)', '*pinterest*', true],
+  ['Wildcard prefix (cdn-*.turbo.cr)', 'cdn-*.turbo.cr', true],
+  ['Dot-prefixed domain (.pinterest.ru)', '.pinterest.ru', true],
+  ['Reject bare wildcard (*)', '*', false],
+  ['Reject wildcard dot (*.*)', '*.*', false],
+  ['Reject double dot (*.pinterest..ru)', '*.pinterest..ru', false],
+  ['Reject leading dash keyword (-pinterest)', '-pinterest', false],
+  ['Reject trailing dash keyword (pinterest-)', 'pinterest-', false],
+  ['Reject protocol (http://pinterest.ru)', 'http://pinterest.ru', false],
+  ['Reject spaces (* pinterest.ru)', '* pinterest.ru', false],
+];
+
 describe('validateDomain', () => {
   describe.each(validDomains)('Valid domain: %s', (_desc, domain) => {
     it(`returns valid=true for "${domain}"`, () => {
@@ -56,6 +75,16 @@ describe('validateDomain', () => {
     (_desc, domain, allowDotTLD, expected) => {
       it(`"${domain}" with allowDotTLD=${allowDotTLD} → valid=${expected}`, () => {
         const res = validateDomain(domain, allowDotTLD);
+        expect(res.valid).toBe(expected);
+      });
+    },
+  );
+
+  describe.each(patternTests)(
+    'Domain patterns toggle: %s',
+    (_desc, domain, expected) => {
+      it(`"${domain}" with allowPatterns=true → valid=${expected}`, () => {
+        const res = validateDomain(domain, true, true);
         expect(res.valid).toBe(expected);
       });
     },
